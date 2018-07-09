@@ -12,15 +12,29 @@ spec:
     ports:
     - containerPort: 3306
     env:
-    - name: PASSWORD
+    - name: ---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-server
+  labels:
+    role: server
+spec:
+  containers:
+  - name: mysql-server
+    image: mysql:5.7
+    ports:
+    - containerPort: 3306
+    env:
+    - name: MYSQL_ROOT_PASSWORD
       valueFrom:
         secretKeyRef:
           name: mysecret
           key: password
     resources:
       requests:
-        memory: "256Mi"
-        cpu: "100m"
+        memory: 256Mi
+        cpu: 100m
 ---
 apiVersion: v1
 kind: Pod
@@ -31,34 +45,45 @@ metadata:
 spec:
   containers:
   - name: mysql-client
-    image: ekonser/nginx_curl
+    image: mysql:5.7
     resources:
       requests:
-        memory: "64Mi"
-        cpu: "50m"
+        memory: 64Mi
+        cpu: 0.05
     env:
     - name: PASSWORD
       valueFrom:
         secretKeyRef:
           name: mysecret
           key: password
-#    ports:
-#    - containerPort: 8082
+    lifecycle:
+      postStart:
+        exec:
+          command: 
+           - "sh"
+           - "-c"
+           - >
+             apt-get update -y;
+             apt-get install git -y;
+    command: ["sleep"]
+    args: ["3600"]
 ---
 kind: Service
 apiVersion: v1
 metadata:
   name: mysql
 spec:
+  selector:
+    role: server
   ports:
   - protocol: TCP
     port: 3306
-    targetPort: 3306
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: mysecret
+type: Opaque
 data:
   # echo -n root | base64 
   password: cm9vdDFA
